@@ -1,5 +1,6 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
+import random
 
 class ChessGameApp:
     def __init__(self, root: tk.Tk):
@@ -12,6 +13,8 @@ class ChessGameApp:
         self.black_time = 0
         self.timer_running = False
         self.current_timer = None
+        self.game_mode = None 
+        self.player_names = {'white': 'White', 'black': 'Black'}
 
     def configure_window(self):
         self.BOARD_SIZE = 8
@@ -34,23 +37,29 @@ class ChessGameApp:
             foreground="#FFFFFF",   
             background="#333333"   
         )
-        title.pack(pady=50)
+        title.pack(pady=30)
         btn_style = {
             "font": ("Arial", 18),
-            "width": 15,
+            "width": 20,
             "height": 2
         }
-        tk.Button(self.menu_frame, text="New Game", command=self.start_new_game, **btn_style).pack(pady=10)
-        tk.Button(self.menu_frame, text="Rules", command=self.show_rules, **btn_style).pack(pady=10)
-        tk.Button(self.menu_frame, text="Exit", command=self.root.quit, **btn_style).pack(pady=10)
+        tk.Button(self.menu_frame, text="Two Players", 
+                  command=self.start_two_player_game, **btn_style).pack(pady=10)
+        tk.Button(self.menu_frame, text="Play vs Computer", 
+                  command=self.start_computer_game, **btn_style).pack(pady=10)
+        tk.Button(self.menu_frame, text="Rules", 
+                  command=self.show_rules, **btn_style).pack(pady=10)
+        tk.Button(self.menu_frame, text="Exit", 
+                  command=self.root.quit, **btn_style).pack(pady=10)
         chess_piece = tk.Label(
             self.menu_frame,
-            text="Queen",
+            text="Chess_Game",
             foreground="#FF0000",   
             background="#00FF00",    
             font=("Arial", 20)
         )
         chess_piece.pack(pady=20)
+        
         self.canvas = tk.Canvas(
             self.root,
             width=self.BOARD_SIZE * self.SQUARE_SIZE,
@@ -102,6 +111,24 @@ class ChessGameApp:
             self.board[7][col] = ('white', order[col])
             self.board[6][col] = ('white', 'pawn')
 
+    def start_two_player_game(self):
+        self.game_mode = '2players'
+        white_name = simpledialog.askstring("Player Names", "Enter name for White player:")
+        black_name = simpledialog.askstring("Player Names", "Enter name for Black player:")
+        if white_name and white_name.strip():
+            self.player_names['white'] = white_name.strip()
+        if black_name and black_name.strip():
+            self.player_names['black'] = black_name.strip()
+        self.start_new_game()
+
+    def start_computer_game(self):
+        self.game_mode = 'computer'
+        white_name = simpledialog.askstring("Player Name", "Enter your name (you play as White):")
+        if white_name and white_name.strip():
+            self.player_names['white'] = white_name.strip()
+        self.player_names['black'] = "Computer"
+        self.start_new_game()
+
     def start_new_game(self):
         self.menu_frame.pack_forget()
         self.info_panel.pack(side="right", fill="y")
@@ -111,7 +138,7 @@ class ChessGameApp:
         self.selected_piece = None
         self.selected_pos = None
         self.current_turn = 'white'
-        self.info_label.config(text="Turn: White")
+        self.info_label.config(text=f"Turn: {self.player_names['white']}")
         self._setup_pieces()
         self.draw_board()
         self.white_time = 0
@@ -143,13 +170,12 @@ class ChessGameApp:
         b_min = self.black_time // 60
         b_sec = self.black_time % 60
         if self.current_timer == 'white':
-            self.timer_label.config(text=f"White Time: {w_min:02d}:{w_sec:02d}")
+            self.timer_label.config(text=f"{self.player_names['white']} Time: {w_min:02d}:{w_sec:02d}")
         elif self.current_timer == 'black':
-            self.timer_label.config(text=f"Black Time: {b_min:02d}:{b_sec:02d}")
+            self.timer_label.config(text=f"{self.player_names['black']} Time: {b_min:02d}:{b_sec:02d}")
 
     def draw_board(self):
-        self.canvas.delete("all")
-        
+        self.canvas.delete("all")        
         for row in range(8):
             for col in range(8):
                 color = "#F0D9B5" if (row + col) % 2 == 0 else "#B58863"
@@ -199,6 +225,8 @@ class ChessGameApp:
 
     def on_square_click(self, event):
         if not self.game_running:
+            return
+        if self.game_mode == 'computer' and self.current_turn == 'black':
             return       
         col = event.x // self.SQUARE_SIZE
         row = event.y // self.SQUARE_SIZE
@@ -214,22 +242,46 @@ class ChessGameApp:
             else:
                 if self.is_valid_move(self.selected_pos, (row, col)):
                     self.move_piece(self.selected_pos, (row, col))
-                    self.stop_timer()
-                    if self.current_turn == 'white':
-                        self.current_turn = 'black'
-                        self.start_timer('black')
-                    else:
-                        self.current_turn = 'white'
-                        self.start_timer('white')
-                    self.info_label.config(text=f"Turn: {'White' if self.current_turn == 'white' else 'Black'}")                
-                    if self.is_checkmate():
-                        winner = "Black" if self.current_turn == 'white' else "White"
-                        messagebox.showinfo("Game Over", f"Checkmate! {winner} wins!")
-                        self.game_running = False
-                        self.stop_timer()            
+                    self.after_move()          
                 self.selected_piece = None
                 self.selected_pos = None
         self.draw_board()
+
+    def after_move(self):
+        """Actions after a move: switch turn, check game end, computer move"""
+        self.stop_timer()
+        if self.current_turn == 'white':
+            self.current_turn = 'black'
+            self.start_timer('black')
+        else:
+            self.current_turn = 'white'
+            self.start_timer('white')
+        self.info_label.config(text=f"Turn: {self.player_names[self.current_turn]}")                
+        if self.is_checkmate():
+            winner = self.player_names['black'] if self.current_turn == 'white' else self.player_names['white']
+            messagebox.showinfo("Game Over", f"Checkmate! {winner} wins!")
+            self.game_running = False
+            self.stop_timer()
+            return
+        if self.game_mode == 'computer' and self.current_turn == 'black' and self.game_running:
+            self.root.after(800, self.computer_move)
+
+    def computer_move(self):
+        """Simple computer AI: picks a random valid move"""
+        all_moves = []
+        for row in range(8):
+            for col in range(8):
+                piece = self.board[row][col]
+                if piece and piece[0] == 'black':
+                    for to_row in range(8):
+                        for to_col in range(8):
+                            if self.is_valid_move((row, col), (to_row, to_col)):
+                                all_moves.append( ((row, col), (to_row, to_col)) )
+        if all_moves:
+            from_pos, to_pos = random.choice(all_moves)
+            self.move_piece(from_pos, to_pos)
+            self.after_move()
+            self.draw_board()
 
     def is_valid_move(self, from_pos, to_pos):
         from_row, from_col = from_pos
