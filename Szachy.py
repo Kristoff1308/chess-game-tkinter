@@ -15,6 +15,9 @@ class ChessGameApp:
         self.current_timer = None
         self.game_mode = None 
         self.player_names = {'white': 'White', 'black': 'Black'}
+        self.piece_moved = {'white': {'king': False, 'rook_a': False, 'rook_h': False},
+                            'black': {'king': False, 'rook_a': False, 'rook_h': False}}
+        self.en_passant_target = None
 
     def configure_window(self):
         self.BOARD_SIZE = 8
@@ -101,6 +104,9 @@ class ChessGameApp:
         self.game_running = False
         self._setup_pieces()       
         self.canvas.bind("<Button-1>", self.on_square_click)
+        self.piece_moved = {'white': {'king': False, 'rook_a': False, 'rook_h': False},
+                            'black': {'king': False, 'rook_a': False, 'rook_h': False}}
+        self.en_passant_target = None
 
     def _setup_pieces(self):
         order = ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook']   
@@ -145,6 +151,9 @@ class ChessGameApp:
         self.black_time = 0
         self.update_timer_display()
         self.start_timer('white')
+        self.piece_moved = {'white': {'king': False, 'rook_a': False, 'rook_h': False},
+                            'black': {'king': False, 'rook_a': False, 'rook_h': False}}
+        self.en_passant_target = None
 
     def start_timer(self, player):
         self.timer_running = True
@@ -223,6 +232,106 @@ class ChessGameApp:
                             fill="#222222"
                         )
 
+    def get_king_position(self, color):
+        for row in range(8):
+            for col in range(8):
+                piece = self.board[row][col]
+                if piece and piece[0] == color and piece[1] == 'king':
+                    return (row, col)
+        return None
+
+    def is_in_check(self, color):
+        king_pos = self.get_king_position(color)
+        if not king_pos:
+            return False
+        opponent = 'black' if color == 'white' else 'white'
+        for row in range(8):
+            for col in range(8):
+                piece = self.board[row][col]
+                if piece and piece[0] == opponent:
+                    if self.is_valid_move((row, col), king_pos):
+                        return True
+        return False
+
+    def would_be_in_check_after_move(self, from_pos, to_pos, color):
+        from_r, from_c = from_pos
+        to_r, to_c = to_pos
+        original_target = self.board[to_r][to_c]
+        original_en_passant = None
+        if self.en_passant_target and (to_r, to_c) == self.en_passant_target:
+            captured_row = from_r
+            captured_col = to_c
+            original_en_passant = self.board[captured_row][captured_col]
+            self.board[captured_row][captured_col] = None
+        self.board[to_r][to_c] = self.board[from_r][from_c]
+        self.board[from_r][from_c] = None
+        in_check = self.is_in_check(color)
+        self.board[from_r][from_c] = self.board[to_r][to_c]
+        self.board[to_r][to_c] = original_target
+        if original_en_passant:
+            self.board[captured_row][captured_col] = original_en_passant
+        return in_check
+
+    def has_any_valid_move(self, color):
+        for row in range(8):
+            for col in range(8):
+                piece = self.board[row][col]
+                if piece and piece[0] == color:
+                    for to_r in range(8):
+                        for to_c in range(8):
+                            if self.is_valid_move((row, col), (to_r, to_c)):
+                                if not self.would_be_in_check_after_move((row, col), (to_r, to_c), color):
+                                    return True
+        return False
+
+    def is_castling_valid(self, color, side):
+        if self.piece_moved[color]['king']:
+            return False
+        if side == 'kingside':
+            if self.piece_moved[color]['rook_h']:
+                return False
+            row = 7 if color == 'white' else 0
+            if self.board[row][5] is not None or self.board[row][6] is not None:
+                return False
+            if self.is_in_check(color):
+                return False
+            temp_pos = [(row, 4), (row, 5), (row, 6)]
+            for pos in temp_pos[1:]:
+                if self.would_be_in_check_after_move(temp_pos[0], pos, color):
+                    return False
+            return True
+        elif side == 'queenside':
+            if self.piece_moved[color]['rook_a']:
+                return False
+            row = 7 if color == 'white' else 0
+            if self.board[row][1] is not None or self.board[row][2] is not None or self.board[row][3] is not None:
+                return False
+            if self.is_in_check(color):
+                return False
+            temp_pos = [(row, 4), (row, 3), (row, 2)]
+            for pos in temp_pos[1:]:
+                if self.would_be_in_check_after_move(temp_pos[0], pos, color):
+                    return False
+            return True
+        return False
+
+    def perform_castling(self, color, side):
+        row = 7 if color == 'white' else 0
+        if side == 'kingside':
+            self.board[row][6] = self.board[row][4]
+            self.board[row][4] = None
+            self.board[row][5] = self.board[row][7]
+            self.board[row][7] = None
+            self.piece_moved[color]['king'] = True
+            self.piece_moved[color]['rook_h'] = True
+        elif side == 'queenside':
+            self.board[row][2] = self.board[row][4]
+            self.board[row][4] = None
+            self.board[row][3] = self.board[row][0]
+            self.board[row][0] = None
+            self.piece_moved[color]['king'] = True
+            self.piece_moved[color]['rook_a'] = True
+
     def on_square_click(self, event):
         if not self.game_running:
             return
@@ -240,15 +349,42 @@ class ChessGameApp:
                 self.selected_piece = None
                 self.selected_pos = None
             else:
+                from_r, from_c = self.selected_pos
+                if self.selected_piece[1] == 'king':
+                    color = self.selected_piece[0]
+                    if from_c == 4 and row == (7 if color == 'white' else 0):
+                        if col == 6 and self.is_castling_valid(color, 'kingside'):
+                            self.perform_castling(color, 'kingside')
+                            self.after_move()
+                            self.selected_piece = None
+                            self.selected_pos = None
+                            self.draw_board()
+                            return
+                        elif col == 2 and self.is_castling_valid(color, 'queenside'):
+                            self.perform_castling(color, 'queenside')
+                            self.after_move()
+                            self.selected_piece = None
+                            self.selected_pos = None
+                            self.draw_board()
+                            return
                 if self.is_valid_move(self.selected_pos, (row, col)):
-                    self.move_piece(self.selected_pos, (row, col))
-                    self.after_move()          
+                    if self.would_be_in_check_after_move(self.selected_pos, (row, col), self.current_turn):
+                        messagebox.showwarning("Invalid Move", "You cannot make this move — your king would be in check!")
+                    else:
+                        if self.is_in_check(self.current_turn):
+                            if not self.would_be_in_check_after_move(self.selected_pos, (row, col), self.current_turn):
+                                self.move_piece(self.selected_pos, (row, col))
+                                self.after_move()
+                            else:
+                                messagebox.showwarning("Invalid Move", "Your king is in check — you must get out of check first!")
+                        else:
+                            self.move_piece(self.selected_pos, (row, col))
+                            self.after_move()          
                 self.selected_piece = None
                 self.selected_pos = None
         self.draw_board()
 
     def after_move(self):
-        """Actions after a move: switch turn, check game end, computer move"""
         self.stop_timer()
         if self.current_turn == 'white':
             self.current_turn = 'black'
@@ -257,18 +393,20 @@ class ChessGameApp:
             self.current_turn = 'white'
             self.start_timer('white')
         self.info_label.config(text=f"Turn: {self.player_names[self.current_turn]}")                
-        if self.is_checkmate():
-            winner = self.player_names['black'] if self.current_turn == 'white' else self.player_names['white']
-            messagebox.showinfo("Game Over", f"Checkmate! {winner} wins!")
-            self.game_running = False
-            self.stop_timer()
-            return
+        if self.is_in_check(self.current_turn):
+            if not self.has_any_valid_move(self.current_turn):
+                winner = self.player_names['black'] if self.current_turn == 'white' else self.player_names['white']
+                messagebox.showinfo("Game Over", f"Checkmate! {winner} wins!")
+                self.game_running = False
+                self.stop_timer()
+                return
+            else:
+                messagebox.showinfo("Check!", f"{self.player_names[self.current_turn]}, your king is in check! You must defend it.")
         if self.game_mode == 'computer' and self.current_turn == 'black' and self.game_running:
             self.root.after(800, self.computer_move)
 
     def computer_move(self):
-        """Simple computer AI: picks a random valid move"""
-        all_moves = []
+        all_valid_moves = []
         for row in range(8):
             for col in range(8):
                 piece = self.board[row][col]
@@ -276,9 +414,10 @@ class ChessGameApp:
                     for to_row in range(8):
                         for to_col in range(8):
                             if self.is_valid_move((row, col), (to_row, to_col)):
-                                all_moves.append( ((row, col), (to_row, to_col)) )
-        if all_moves:
-            from_pos, to_pos = random.choice(all_moves)
+                                if not self.would_be_in_check_after_move((row, col), (to_row, to_col), 'black'):
+                                    all_valid_moves.append( ((row, col), (to_row, to_col)) )
+        if all_valid_moves:
+            from_pos, to_pos = random.choice(all_valid_moves)
             self.move_piece(from_pos, to_pos)
             self.after_move()
             self.draw_board()
@@ -305,8 +444,11 @@ class ChessGameApp:
                ((color == 'white' and from_row == 6) or (color == 'black' and from_row == 1)) and \
                not self.board[from_row + direction][from_col]:
                 return True        
-            if abs_dc == 1 and dr == direction and target:
-                return True
+            if abs_dc == 1 and dr == direction:
+                if target:
+                    return True
+                elif self.en_passant_target == (to_row, to_col):
+                    return True
         elif ptype == 'rook':
             if (dr == 0 or dc == 0) and self.is_path_clear(from_pos, to_pos):
                 return True
@@ -340,32 +482,41 @@ class ChessGameApp:
     def move_piece(self, from_pos, to_pos):
         from_row, from_col = from_pos
         to_row, to_col = to_pos
+        color, ptype = self.board[from_row][from_col]
+        if ptype == 'king':
+            self.piece_moved[color]['king'] = True
+        if ptype == 'rook':
+            if from_col == 0:
+                self.piece_moved[color]['rook_a'] = True
+            elif from_col == 7:
+                self.piece_moved[color]['rook_h'] = True
+        self.en_passant_target = None
+        if ptype == 'pawn' and abs(from_row - to_row) == 2:
+            ep_row = (from_row + to_row) // 2
+            self.en_passant_target = (ep_row, from_col)
+        if ptype == 'pawn' and (to_row, to_col) == self.en_passant_target:
+            captured_row = from_row
+            captured_col = to_col
+            self.board[captured_row][captured_col] = None
         self.board[to_row][to_col] = self.board[from_row][from_col]
         self.board[from_row][from_col] = None
-
-    def is_checkmate(self):
-        kings = {'white': False, 'black': False}
-        for row in self.board:
-            for piece in row:
-                if piece and piece[1] == 'king':
-                    kings[piece[0]] = True
-        return not kings['white'] or not kings['black']
 
     def show_rules(self):
         rules = """
         Basic Rules:
         - White moves first
         - Each piece moves according to its own rules
-        - King: 1 square in any direction
+        - King: 1 square in any direction; Castling: if king and rook haven't moved, path is clear, and king is not in check
         - Queen: any number of squares in any direction
         - Rook: straight (horizontal/vertical)
         - Bishop: diagonally
         - Knight: in L-shape (2 + 1)
-        - Pawn: forward, captures diagonally
-        Goal: Checkmate – trap the opponent's king so it cannot escape.
+        - Pawn: forward 1 square, 2 squares on first move; captures diagonally; En Passant capture allowed
+        - Check: when the king is under attack — you must get out of check
+        - Checkmate: when the king is in check and there is no legal move to escape — game over
+        Goal: Checkmate the opponent's king.
         """
         messagebox.showinfo("Game Rules", rules)
-
 
 def main():
     root = tk.Tk()
