@@ -33,16 +33,18 @@ class ChessGameApp:
     def create_controls(self):
         self.menu_frame = tk.Frame(self.root, bg="#1a1a2e")
         self.menu_frame.pack(fill="both", expand=True)
+
         title = tk.Label(
             self.menu_frame,
             text="CHESS",
             font=("Arial", 40, "bold"),
             foreground="#FFFFFF",
-            background="#1a1a2e",  
-            borderwidth=0,        
-            relief="flat"         
+            background="#1a1a2e",
+            borderwidth=0,
+            relief="flat"
         )
         title.pack(pady=20)
+
         diff_frame = tk.Frame(self.menu_frame, bg="#1a1a2e", borderwidth=0, relief="flat")
         diff_frame.pack(pady=10)
 
@@ -436,6 +438,23 @@ class ChessGameApp:
                 self.selected_pos = None
         self.draw_board()
 
+    def end_game_options(self, title, message):
+        self.stop_timer()
+        result = messagebox.askquestion(title, message + "\n\nBack to Menu? (Yes) / Exit? (No)", icon='info')
+        if result == 'yes':
+            self.go_back_to_menu()
+        else:
+            self.root.quit()
+
+    def go_back_to_menu(self):
+        self.game_running = False
+        self.canvas.pack_forget()
+        self.info_panel.pack_forget()
+        self.menu_frame.pack(fill="both", expand=True)
+        self.selected_piece = None
+        self.selected_pos = None
+        self.current_turn = 'white'
+
     def after_move(self):
         self.stop_timer()
         if self.current_turn == 'white':
@@ -448,17 +467,14 @@ class ChessGameApp:
         if self.is_in_check(self.current_turn):
             if not self.has_any_valid_move(self.current_turn):
                 winner = self.player_names['black'] if self.current_turn == 'white' else self.player_names['white']
-                messagebox.showinfo("Game Over", f"Checkmate! {winner} wins!")
-                self.game_running = False
-                self.stop_timer()
+                self.end_game_options("Checkmate!", f"Checkmate! {winner} wins!")
                 return
             else:
                 messagebox.showinfo("Check!", f"{self.player_names[self.current_turn]}, your king is in check! You must defend it.")
         elif not self.has_any_valid_move(self.current_turn):
-            messagebox.showinfo("Game Over", "Stalemate! It's a draw!")
-            self.game_running = False
-            self.stop_timer()
+            self.end_game_options("Stalemate!", "Stalemate! It's a draw!")
             return
+
         if self.game_mode == 'computer' and self.current_turn == 'black' and self.game_running:
             self.root.after(800, self.computer_move)
 
@@ -488,6 +504,7 @@ class ChessGameApp:
         all_valid_moves = []
         capture_moves = []
         good_moves = []
+
         for row in range(8):
             for col in range(8):
                 piece = self.board[row][col]
@@ -503,12 +520,13 @@ class ChessGameApp:
 
         if not all_valid_moves:
             if self.is_in_check('black'):
-                messagebox.showinfo("Game Over", "Checkmate! You win!")
+                self.end_game_options("Checkmate!", "Checkmate! You win!")
             else:
-                messagebox.showinfo("Game Over", "Stalemate! It's a draw!")
+                self.end_game_options("Stalemate!", "Stalemate! It's a draw!")
             self.game_running = False
             self.stop_timer()
             return
+
         if self.difficulty == 'easy':
             from_pos, to_pos = random.choice(all_valid_moves)
         elif self.difficulty == 'medium':
@@ -527,6 +545,7 @@ class ChessGameApp:
                 elif score == best_score:
                     best_moves.append(move)
             from_pos, to_pos = random.choice(best_moves)
+
         self.move_piece(from_pos, to_pos)
         self.after_move()
         self.draw_board()
@@ -612,22 +631,23 @@ class ChessGameApp:
 
     def show_rules(self):
         rules = """
-        Basic Rules:
-        - White moves first
-        - Each piece moves according to its own rules
-        - King: 1 square in any direction; Castling: if king and rook haven't moved, path is clear, and king is not in check
-        - Queen: any number of squares in any direction
-        - Rook: straight (horizontal/vertical)
-        - Bishop: diagonally
-        - Knight: in L-shape (2 + 1)
-        - Pawn: forward 1 square, 2 squares on first move; captures diagonally; En Passant capture allowed
-        - Check: when the king is under attack — you must get out of check
-        - Checkmate: when the king is in check and there is no legal move to escape — game over
-        Goal: Checkmate the opponent's king.        
-        Difficulty Levels:
-        • Easy - random moves
-        • Medium - prioritizes capturing your pieces
-        • Hard - defends itself and attacks strategically
+Basic Rules:
+- White moves first
+- Each piece moves according to its own rules
+- King: 1 square in any direction; Castling: if king and rook haven't moved, path is clear, and king is not in check
+- Queen: any number of squares in any direction
+- Rook: straight (horizontal/vertical)
+- Bishop: diagonally
+- Knight: in L-shape (2 + 1)
+- Pawn: forward 1 square, 2 squares on first move; captures diagonally; En Passant capture allowed
+- Check: when the king is under attack — you must get out of check
+- Checkmate: when the king is in check and there is no legal move to escape — game over
+Goal: Checkmate the opponent's king.
+        
+Difficulty Levels:
+• Easy - random moves
+• Medium - prioritizes capturing your pieces
+• Hard - defends itself and attacks strategically
         """
         messagebox.showinfo("Game Rules", rules)
 
