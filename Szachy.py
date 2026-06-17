@@ -14,10 +14,13 @@ class ChessGameApp:
         self.timer_running = False
         self.current_timer = None
         self.game_mode = None 
+        self.difficulty = 'easy'
         self.player_names = {'white': 'White', 'black': 'Black'}
+        self.piece_values = {'pawn': 1, 'knight': 3, 'bishop': 3, 'rook': 5, 'queen': 9, 'king': 100}
         self.piece_moved = {'white': {'king': False, 'rook_a': False, 'rook_h': False},
                             'black': {'king': False, 'rook_a': False, 'rook_h': False}}
         self.en_passant_target = None
+        self.bg_image = None
 
     def configure_window(self):
         self.BOARD_SIZE = 8
@@ -28,23 +31,79 @@ class ChessGameApp:
         self.root.resizable(False, False)
 
     def create_controls(self):
-        self.menu_frame = tk.Frame(
-            self.root,
-            background="#333333"
-        )
+        self.menu_frame = tk.Frame(self.root, bg="#1a1a2e")
         self.menu_frame.pack(fill="both", expand=True)
         title = tk.Label(
             self.menu_frame,
             text="CHESS",
             font=("Arial", 40, "bold"),
-            foreground="#FFFFFF",   
-            background="#333333"   
+            foreground="#FFFFFF",
+            background="#1a1a2e",  
+            borderwidth=0,        
+            relief="flat"         
         )
-        title.pack(pady=30)
+        title.pack(pady=20)
+        diff_frame = tk.Frame(self.menu_frame, bg="#1a1a2e", borderwidth=0, relief="flat")
+        diff_frame.pack(pady=10)
+
+        tk.Label(
+            diff_frame, 
+            text="Difficulty Level:", 
+            font=("Arial", 14), 
+            fg="white", 
+            bg="#1a1a2e",
+            borderwidth=0
+        ).grid(row=0, column=0, padx=5)
+
+        self.diff_var = tk.StringVar(value="easy")
+        tk.Radiobutton(
+            diff_frame, 
+            text="Easy", 
+            variable=self.diff_var, 
+            value="easy", 
+            font=("Arial", 12), 
+            bg="#1a1a2e", 
+            fg="white", 
+            selectcolor="#33334e",
+            borderwidth=0,
+            relief="flat",
+            activebackground="#1a1a2e"
+        ).grid(row=0, column=1)
+
+        tk.Radiobutton(
+            diff_frame, 
+            text="Medium", 
+            variable=self.diff_var, 
+            value="medium", 
+            font=("Arial", 12), 
+            bg="#1a1a2e", 
+            fg="white", 
+            selectcolor="#33334e",
+            borderwidth=0,
+            relief="flat",
+            activebackground="#1a1a2e"
+        ).grid(row=0, column=2)
+
+        tk.Radiobutton(
+            diff_frame, 
+            text="Hard", 
+            variable=self.diff_var, 
+            value="hard", 
+            font=("Arial", 12), 
+            bg="#1a1a2e", 
+            fg="white", 
+            selectcolor="#33334e",
+            borderwidth=0,
+            relief="flat",
+            activebackground="#1a1a2e"
+        ).grid(row=0, column=3)
+
         btn_style = {
             "font": ("Arial", 18),
             "width": 20,
-            "height": 2
+            "height": 2,
+            "borderwidth": 0,
+            "relief": "flat"
         }
         tk.Button(self.menu_frame, text="Two Players", 
                   command=self.start_two_player_game, **btn_style).pack(pady=10)
@@ -54,14 +113,6 @@ class ChessGameApp:
                   command=self.show_rules, **btn_style).pack(pady=10)
         tk.Button(self.menu_frame, text="Exit", 
                   command=self.root.quit, **btn_style).pack(pady=10)
-        chess_piece = tk.Label(
-            self.menu_frame,
-            text="Chess_Game",
-            foreground="#FF0000",   
-            background="#00FF00",    
-            font=("Arial", 20)
-        )
-        chess_piece.pack(pady=20)
         
         self.canvas = tk.Canvas(
             self.root,
@@ -129,6 +180,7 @@ class ChessGameApp:
 
     def start_computer_game(self):
         self.game_mode = 'computer'
+        self.difficulty = self.diff_var.get()
         white_name = simpledialog.askstring("Player Name", "Enter your name (you play as White):")
         if white_name and white_name.strip():
             self.player_names['white'] = white_name.strip()
@@ -402,11 +454,40 @@ class ChessGameApp:
                 return
             else:
                 messagebox.showinfo("Check!", f"{self.player_names[self.current_turn]}, your king is in check! You must defend it.")
+        elif not self.has_any_valid_move(self.current_turn):
+            messagebox.showinfo("Game Over", "Stalemate! It's a draw!")
+            self.game_running = False
+            self.stop_timer()
+            return
         if self.game_mode == 'computer' and self.current_turn == 'black' and self.game_running:
             self.root.after(800, self.computer_move)
 
+    def evaluate_move(self, from_pos, to_pos):
+        to_r, to_c = to_pos
+        score = 0
+        target = self.board[to_r][to_c]
+        if target and target[0] == 'white':
+            score += self.piece_values[target[1]] * 10
+        if self.is_square_attacked(to_pos, 'white'):
+            score -= self.piece_values[self.board[from_pos[0]][from_pos[1]][1]] * 8
+        king_pos = self.get_king_position('white')
+        if self.is_valid_move(to_pos, king_pos):
+            score += 5
+        return score
+
+    def is_square_attacked(self, pos, attacker_color):
+        for row in range(8):
+            for col in range(8):
+                piece = self.board[row][col]
+                if piece and piece[0] == attacker_color:
+                    if self.is_valid_move((row, col), pos):
+                        return True
+        return False
+
     def computer_move(self):
         all_valid_moves = []
+        capture_moves = []
+        good_moves = []
         for row in range(8):
             for col in range(8):
                 piece = self.board[row][col]
@@ -415,12 +496,40 @@ class ChessGameApp:
                         for to_col in range(8):
                             if self.is_valid_move((row, col), (to_row, to_col)):
                                 if not self.would_be_in_check_after_move((row, col), (to_row, to_col), 'black'):
-                                    all_valid_moves.append( ((row, col), (to_row, to_col)) )
-        if all_valid_moves:
+                                    move = ((row, col), (to_row, to_col))
+                                    all_valid_moves.append(move)
+                                    if self.board[to_row][to_col] and self.board[to_row][to_col][0] == 'white':
+                                        capture_moves.append(move)
+
+        if not all_valid_moves:
+            if self.is_in_check('black'):
+                messagebox.showinfo("Game Over", "Checkmate! You win!")
+            else:
+                messagebox.showinfo("Game Over", "Stalemate! It's a draw!")
+            self.game_running = False
+            self.stop_timer()
+            return
+        if self.difficulty == 'easy':
             from_pos, to_pos = random.choice(all_valid_moves)
-            self.move_piece(from_pos, to_pos)
-            self.after_move()
-            self.draw_board()
+        elif self.difficulty == 'medium':
+            if capture_moves:
+                from_pos, to_pos = random.choice(capture_moves)
+            else:
+                from_pos, to_pos = random.choice(all_valid_moves)
+        elif self.difficulty == 'hard':
+            best_score = -9999
+            best_moves = []
+            for move in all_valid_moves:
+                score = self.evaluate_move(move[0], move[1])
+                if score > best_score:
+                    best_score = score
+                    best_moves = [move]
+                elif score == best_score:
+                    best_moves.append(move)
+            from_pos, to_pos = random.choice(best_moves)
+        self.move_piece(from_pos, to_pos)
+        self.after_move()
+        self.draw_board()
 
     def is_valid_move(self, from_pos, to_pos):
         from_row, from_col = from_pos
@@ -514,7 +623,11 @@ class ChessGameApp:
         - Pawn: forward 1 square, 2 squares on first move; captures diagonally; En Passant capture allowed
         - Check: when the king is under attack — you must get out of check
         - Checkmate: when the king is in check and there is no legal move to escape — game over
-        Goal: Checkmate the opponent's king.
+        Goal: Checkmate the opponent's king.        
+        Difficulty Levels:
+        • Easy - random moves
+        • Medium - prioritizes capturing your pieces
+        • Hard - defends itself and attacks strategically
         """
         messagebox.showinfo("Game Rules", rules)
 
