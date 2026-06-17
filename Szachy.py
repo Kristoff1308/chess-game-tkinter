@@ -33,116 +33,33 @@ class ChessGameApp:
     def create_controls(self):
         self.menu_frame = tk.Frame(self.root, bg="#1a1a2e")
         self.menu_frame.pack(fill="both", expand=True)
-
         title = tk.Label(
-            self.menu_frame,
-            text="CHESS",
-            font=("Arial", 40, "bold"),
-            foreground="#FFFFFF",
-            background="#1a1a2e",
-            borderwidth=0,
-            relief="flat"
-        )
+            self.menu_frame, text="CHESS", font=("Arial", 40, "bold"),foreground="#FFFFFF",background="#1a1a2e",borderwidth=0, relief="flat" )
         title.pack(pady=20)
-
         diff_frame = tk.Frame(self.menu_frame, bg="#1a1a2e", borderwidth=0, relief="flat")
         diff_frame.pack(pady=10)
-
-        tk.Label(
-            diff_frame, 
-            text="Difficulty Level:", 
-            font=("Arial", 14), 
-            fg="white", 
-            bg="#1a1a2e",
-            borderwidth=0
-        ).grid(row=0, column=0, padx=5)
-
+        tk.Label(diff_frame, text="Difficulty Level:", font=("Arial", 14), fg="white", bg="#1a1a2e",borderwidth=0 ).grid(row=0, column=0, padx=5)
         self.diff_var = tk.StringVar(value="easy")
-        tk.Radiobutton(
-            diff_frame, 
-            text="Easy", 
-            variable=self.diff_var, 
-            value="easy", 
-            font=("Arial", 12), 
-            bg="#1a1a2e", 
-            fg="white", 
-            selectcolor="#33334e",
-            borderwidth=0,
-            relief="flat",
-            activebackground="#1a1a2e"
-        ).grid(row=0, column=1)
-
-        tk.Radiobutton(
-            diff_frame, 
-            text="Medium", 
-            variable=self.diff_var, 
-            value="medium", 
-            font=("Arial", 12), 
-            bg="#1a1a2e", 
-            fg="white", 
-            selectcolor="#33334e",
-            borderwidth=0,
-            relief="flat",
-            activebackground="#1a1a2e"
-        ).grid(row=0, column=2)
-
-        tk.Radiobutton(
-            diff_frame, 
-            text="Hard", 
-            variable=self.diff_var, 
-            value="hard", 
-            font=("Arial", 12), 
-            bg="#1a1a2e", 
-            fg="white", 
-            selectcolor="#33334e",
-            borderwidth=0,
-            relief="flat",
-            activebackground="#1a1a2e"
-        ).grid(row=0, column=3)
-
-        btn_style = {
-            "font": ("Arial", 18),
-            "width": 20,
-            "height": 2,
-            "borderwidth": 0,
-            "relief": "flat"
-        }
-        tk.Button(self.menu_frame, text="Two Players", 
-                  command=self.start_two_player_game, **btn_style).pack(pady=10)
-        tk.Button(self.menu_frame, text="Play vs Computer", 
-                  command=self.start_computer_game, **btn_style).pack(pady=10)
-        tk.Button(self.menu_frame, text="Rules", 
-                  command=self.show_rules, **btn_style).pack(pady=10)
-        tk.Button(self.menu_frame, text="Exit", 
-                  command=self.root.quit, **btn_style).pack(pady=10)
-        
+        tk.Radiobutton(diff_frame,text="Easy",variable=self.diff_var,value="easy",font=("Arial", 12),bg="#1a1a2e",fg="white",selectcolor="#33334e", borderwidth=0,relief="flat",activebackground="#1a1a2e").grid(row=0, column=1)
+        tk.Radiobutton(diff_frame,text="Medium",variable=self.diff_var,value="medium",font=("Arial", 12),bg="#1a1a2e",fg="white",selectcolor="#33334e", borderwidth=0, relief="flat", activebackground="#1a1a2e" ).grid(row=0, column=2)
+        tk.Radiobutton(diff_frame,text="Hard",variable=self.diff_var,value="hard",font=("Arial", 12),bg="#1a1a2e",fg="white",selectcolor="#33334e",borderwidth=0,relief="flat", activebackground="#1a1a2e").grid(row=0, column=3)
+        btn_style = {"font": ("Arial", 18),"width": 20,"height": 2,"borderwidth": 0,"relief": "flat"}
+        tk.Button(self.menu_frame, text="Two Players", command=self.start_two_player_game, **btn_style).pack(pady=10)
+        tk.Button(self.menu_frame, text="Play vs Computer", command=self.start_computer_game, **btn_style).pack(pady=10)
+        tk.Button(self.menu_frame, text="Rules",command=self.show_rules, **btn_style).pack(pady=10)
+        tk.Button(self.menu_frame, text="Exit", command=self.root.quit, **btn_style).pack(pady=10)       
         self.canvas = tk.Canvas(
             self.root,
             width=self.BOARD_SIZE * self.SQUARE_SIZE,
             height=self.BOARD_SIZE * self.SQUARE_SIZE,
-            background="#FFFFFF"
-        )
+            background="#FFFFFF")
         self.info_panel = tk.Frame(
-            self.root,
-            background="#F0F0F0",
-            width=180,
-            height=self.HEIGHT
-        )
+            self.root,background="#F0F0F0",width=180,height=self.HEIGHT)
         self.info_label = tk.Label(
-            self.info_panel,
-            text="Turn: White",
-            font=("Arial", 16),
-            foreground="#000000",
-            background="#F0F0F0"
-        )
+            self.info_panel,text="Turn: White",font=("Arial", 16),foreground="#000000",background="#F0F0F0")
         self.info_label.pack(pady=20)
         self.timer_label = tk.Label(
-            self.info_panel,
-            text="White Time: 00:00",
-            font=("Arial", 14),
-            foreground="#222222",
-            background="#F0F0F0"
-        )
+            self.info_panel,text="White Time: 00:00",font=("Arial", 14),foreground="#222222",background="#F0F0F0")
         self.timer_label.pack(pady=5)
 
     def setup_game(self):
@@ -258,35 +175,23 @@ class ChessGameApp:
                             self.canvas.create_text(
                                 x1 + self.SQUARE_SIZE / 2 + dx,
                                 y1 + self.SQUARE_SIZE / 2 + dy,
-                                text=symbol,
-                                font=("Arial", 36),
-                                fill="#000000"
-                            )
+                                text=symbol,font=("Arial", 36),fill="#000000")
                         self.canvas.create_text(
                             x1 + self.SQUARE_SIZE / 2,
                             y1 + self.SQUARE_SIZE / 2,
-                            text=symbol,
-                            font=("Arial", 36),
-                            fill="#FFFFFF"
-                        )
+                            text=symbol,font=("Arial", 36),fill="#FFFFFF")
                     else:
                         for dx, dy in [(-0.8, 0), (0.8, 0), (0, -0.8), (0, 0.8)]:
                             self.canvas.create_text(
                                 x1 + self.SQUARE_SIZE / 2 + dx,
                                 y1 + self.SQUARE_SIZE / 2 + dy,
-                                text=symbol,
-                                font=("Arial", 36),
-                                fill="#FFFFFF"
-                            )
+                                text=symbol,font=("Arial", 36),fill="#FFFFFF")
                         self.canvas.create_text(
                             x1 + self.SQUARE_SIZE / 2,
                             y1 + self.SQUARE_SIZE / 2,
-                            text=symbol,
-                            font=("Arial", 36),
-                            fill="#222222"
-                        )
+                            text=symbol,font=("Arial", 36),fill="#222222")
 
-    def get_king_position(self, color):
+    def get_king_position(self,color):
         for row in range(8):
             for col in range(8):
                 piece = self.board[row][col]
@@ -334,7 +239,7 @@ class ChessGameApp:
                     for to_r in range(8):
                         for to_c in range(8):
                             if self.is_valid_move((row, col), (to_r, to_c)):
-                                if not self.would_be_in_check_after_move((row, col), (to_r, to_c), color):
+                              if not self.would_be_in_check_after_move((row, col), (to_r, to_c), color):
                                     return True
         return False
 
@@ -642,8 +547,7 @@ Basic Rules:
 - Pawn: forward 1 square, 2 squares on first move; captures diagonally; En Passant capture allowed
 - Check: when the king is under attack — you must get out of check
 - Checkmate: when the king is in check and there is no legal move to escape — game over
-Goal: Checkmate the opponent's king.
-        
+Goal: Checkmate the opponent's king.     
 Difficulty Levels:
 • Easy - random moves
 • Medium - prioritizes capturing your pieces
