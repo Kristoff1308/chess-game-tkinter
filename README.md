@@ -2,7 +2,7 @@
 
 A chess game built with Python and Tkinter, featuring full gameplay rules and separate timers for each player.
 
-## 🎮 Features
+## Features
 - Complete chess rules implementation
 - Turn-based system (White / Black)
 - Individual timer for each player
@@ -11,7 +11,7 @@ A chess game built with Python and Tkinter, featuring full gameplay rules and se
 - Game rules window
 - Menu: New Game / Rules / Exit
 
-## 🚀 How to Run
+##  How to Run
 1. Make sure you have Python installed (version 3.6 or newer)
 2. Download the `Szachy.py` file
 3. Run it in your terminal:
